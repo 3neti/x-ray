@@ -3,7 +3,8 @@
 use LBHurtado\XRay\Support\MasksSensitiveValues;
 
 it('masks common sensitive values', function () {
-    $helper = new class {
+    $helper = new class
+    {
         use MasksSensitiveValues;
     };
 

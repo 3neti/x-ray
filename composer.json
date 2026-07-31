@@ -36,15 +36,21 @@
     "require-dev": {
         "orchestra/testbench": "^10.3 || ^11.0",
         "pestphp/pest": "^3.8 || ^4.0",
-        "pestphp/pest-plugin-laravel": "^3.2 || ^4.0"
+        "pestphp/pest-plugin-laravel": "^3.2 || ^4.0",
+        "laravel/pint": "^1.0"
     },
     "scripts": {
+        "pint": "vendor/bin/pint --test",
         "test": "vendor/bin/pest",
         "test:coverage": "vendor/bin/pest --coverage"
     },
     "config": {
         "allow-plugins": {
             "pestphp/pest-plugin": true
-        }
-    }
+        },
+        "preferred-install": "dist",
+        "sort-packages": true
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
 }
