@@ -34,10 +34,10 @@
         "spatie/laravel-data": "^4.17"
     },
     "require-dev": {
+        "laravel/pint": "^1.0",
         "orchestra/testbench": "^10.3 || ^11.0",
         "pestphp/pest": "^3.8 || ^4.0",
-        "pestphp/pest-plugin-laravel": "^3.2 || ^4.0",
-        "laravel/pint": "^1.0"
+        "pestphp/pest-plugin-laravel": "^3.2 || ^4.0"
     },
     "scripts": {
         "pint": "vendor/bin/pint --test",
