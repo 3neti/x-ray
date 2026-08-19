@@ -50,7 +50,7 @@ return [
             'show_issuer' => false,
             'show_requirements' => true,
             'show_rider_preclaim' => false,
-            'show_remaining_slices' => false,
+            'show_remaining_slices' => 'if_allowed_by_voucher',
             'show_redirect_url' => false,
             'show_policy_trace' => false,
         ],
