@@ -76,3 +76,32 @@ it('allows admin operational disclosure and policy trace', function () {
     expect(collect($decision['disclosures'])->pluck('key')->all())->toContain('amount', 'redirect_url')
         ->and($decision['policy_trace'])->not->toBeEmpty();
 });
+
+it('passes through only safe presentation copy', function (): void {
+    $policy = app(DefaultXRayDisclosurePolicy::class);
+    $context = new XRayContextData(
+        code: 'INVITE',
+        actor: new XRayActorData(audience: 'guest'),
+    );
+
+    $decision = $policy->evaluate($context, [
+        'status' => 'claimable',
+        'presentation' => [
+            'title' => 'Accept Invitation',
+            'primary_action_label' => 'Accept Invitation',
+            'subtitle' => 'Set up your workspace access.',
+            'intent' => 'commissioning_invitation',
+            'source' => 'flow_default',
+            'issuer_id' => 'hidden',
+            'provider_payload' => ['never' => 'public'],
+        ],
+    ]);
+
+    expect($decision['presentation'])->toBe([
+        'title' => 'Accept Invitation',
+        'primary_action_label' => 'Accept Invitation',
+        'subtitle' => 'Set up your workspace access.',
+        'intent' => 'commissioning_invitation',
+        'source' => 'flow_default',
+    ]);
+});

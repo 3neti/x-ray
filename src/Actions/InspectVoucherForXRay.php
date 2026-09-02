@@ -34,6 +34,7 @@ class InspectVoucherForXRay implements XRayInspectorContract
             stages: Arr::get($decision, 'stages', []),
             trust: $this->trust->resolve(),
             next_actions: Arr::get($decision, 'next_actions', []),
+            presentation: Arr::get($decision, 'presentation', []),
             warnings: Arr::get($decision, 'warnings', []),
             policy_trace: Arr::get($decision, 'policy_trace', []),
         );

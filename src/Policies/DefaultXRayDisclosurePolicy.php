@@ -47,6 +47,9 @@ class DefaultXRayDisclosurePolicy implements XRayDisclosurePolicyContract
         }
 
         $nextActions = array_values(Arr::get($projection, 'next_actions', []));
+        $presentation = $this->safePresentation(
+            Arr::get($projection, 'presentation', []),
+        );
 
         if (! Arr::get($rules, 'show_policy_trace', false)) {
             $policyTrace = [];
@@ -59,6 +62,7 @@ class DefaultXRayDisclosurePolicy implements XRayDisclosurePolicyContract
             'redactions' => $redactions,
             'stages' => $stages,
             'next_actions' => $nextActions,
+            'presentation' => $presentation,
             'warnings' => $warnings,
             'policy_trace' => $policyTrace,
         ];
@@ -112,5 +116,18 @@ class DefaultXRayDisclosurePolicy implements XRayDisclosurePolicyContract
             'account_number' => $this->maskAccountNumber((string) $value),
             default => $value,
         };
+    }
+
+    protected function safePresentation(mixed $presentation): array
+    {
+        if (! is_array($presentation)) {
+            return [];
+        }
+
+        return collect($presentation)
+            ->only(['title', 'primary_action_label', 'subtitle', 'intent', 'source'])
+            ->filter(static fn (mixed $value): bool => is_string($value) && trim($value) !== '')
+            ->map(static fn (string $value): string => trim($value))
+            ->all();
     }
 }

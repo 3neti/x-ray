@@ -16,6 +16,7 @@ class XRayResultData extends Data
         public array $stages = [],
         public ?XRayTrustMetadataData $trust = null,
         public array $next_actions = [],
+        public array $presentation = [],
         public array $warnings = [],
         public array $policy_trace = [],
     ) {}
