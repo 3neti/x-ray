@@ -132,18 +132,20 @@ class DefaultXRayDisclosurePolicy implements XRayDisclosurePolicyContract
         }
 
         $fields = collect($value)
-            ->only(['host_name', 'host_version', 'x_change_version', 'form_flow_version', 'publisher'])
+            ->only(['host_name', 'host_version', 'x_change_version', 'form_flow_version', 'x_ray_version', 'publisher'])
             ->filter(static fn (mixed $item): bool => is_string($item) && trim($item) !== '')
             ->map(static fn (string $item): string => mb_substr(trim($item), 0, 120))
             ->all();
-        $contributors = $value['contributors'] ?? [];
+        foreach (['authors', 'contributors'] as $key) {
+            if (! is_array($value[$key] ?? null)) {
+                continue;
+            }
 
-        if (is_array($contributors)) {
-            $fields['contributors'] = array_values(array_filter(array_map(
+            $fields[$key] = array_values(array_filter(array_map(
                 static fn (mixed $item): ?string => is_string($item) && trim($item) !== ''
                     ? mb_substr(trim($item), 0, 120)
                     : null,
-                array_slice($contributors, 0, 10),
+                array_slice($value[$key], 0, 10),
             )));
         }
 

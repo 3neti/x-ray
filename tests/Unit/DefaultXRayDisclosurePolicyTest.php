@@ -46,7 +46,9 @@ it('discloses only explicitly allowed public Pay Code details', function () {
         'service_info' => [
             'host_name' => 'x-change',
             'x_change_version' => 'v1.1.2',
+            'x_ray_version' => 'v1.0.3',
             'publisher' => '3neti',
+            'authors' => ['Ada', ' Anaïs ', null, str_repeat('A', 121)],
             'contributors' => ['Ada'],
             'private_key' => 'never-public',
         ],
@@ -66,6 +68,8 @@ it('discloses only explicitly allowed public Pay Code details', function () {
 
     expect($disclosures->pluck('key')->all())->toContain('amount', 'issuer', 'provider', 'reference', 'expires_at')
         ->and($disclosures->get('service_info')['value'])->not->toHaveKey('private_key')
+        ->and($disclosures->get('service_info')['value']['x_ray_version'])->toBe('v1.0.3')
+        ->and($disclosures->get('service_info')['value']['authors'])->toBe(['Ada', 'Anaïs', str_repeat('A', 120)])
         ->and(collect($decision['redactions'])->pluck('key')->all())->toContain('redirect_url');
 });
 
