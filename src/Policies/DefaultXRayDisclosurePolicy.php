@@ -28,6 +28,12 @@ class DefaultXRayDisclosurePolicy implements XRayDisclosurePolicyContract
         $this->maybeDisclose('status', $status, 'Status', Arr::get($rules, 'show_status'), $disclosures, $redactions, $audience, $policyTrace);
         $this->maybeDisclose('amount', Arr::get($projection, 'amount'), 'Amount', Arr::get($rules, 'show_amount'), $disclosures, $redactions, $audience, $policyTrace, $projection);
         $this->maybeDisclose('issuer', Arr::get($projection, 'issuer'), 'Issuer', Arr::get($rules, 'show_issuer'), $disclosures, $redactions, $audience, $policyTrace, $projection);
+        $this->maybeDisclose('funding_source', Arr::get($projection, 'funding_source'), 'Money source', Arr::get($rules, 'show_funding_source'), $disclosures, $redactions, $audience, $policyTrace, $projection);
+        $this->maybeDisclose('provider', Arr::get($projection, 'provider'), 'Payout provider', Arr::get($rules, 'show_provider'), $disclosures, $redactions, $audience, $policyTrace, $projection);
+        $this->maybeDisclose('issued_at', Arr::get($projection, 'issued_at'), 'Issued', Arr::get($rules, 'show_issued_at'), $disclosures, $redactions, $audience, $policyTrace, $projection);
+        $this->maybeDisclose('expires_at', Arr::get($projection, 'expires_at'), 'Expires', Arr::get($rules, 'show_expires_at'), $disclosures, $redactions, $audience, $policyTrace, $projection);
+        $this->maybeDisclose('reference', Arr::get($projection, 'reference'), 'Pay Code', Arr::get($rules, 'show_reference'), $disclosures, $redactions, $audience, $policyTrace, $projection);
+        $this->maybeDisclose('service_info', Arr::get($projection, 'service_info'), 'Service information', Arr::get($rules, 'show_service_info'), $disclosures, $redactions, $audience, $policyTrace, $projection);
         $this->maybeDisclose('remaining_slices', Arr::get($projection, 'remaining_slices'), 'Remaining Slices', Arr::get($rules, 'show_remaining_slices'), $disclosures, $redactions, $audience, $policyTrace, $projection);
         $this->maybeDisclose('redirect_url', Arr::get($projection, 'redirect_url'), 'Redirect URL', Arr::get($rules, 'show_redirect_url'), $disclosures, $redactions, $audience, $policyTrace, $projection);
 
@@ -79,7 +85,7 @@ class DefaultXRayDisclosurePolicy implements XRayDisclosurePolicyContract
         array &$policyTrace,
         array $projection = [],
     ): void {
-        if ($this->allows($rule, $projection, $key)) {
+        if ($value !== null && $value !== '' && $value !== [] && $this->allows($rule, $projection, $key)) {
             $disclosures[] = [
                 'key' => $key,
                 'label' => $label,
@@ -114,8 +120,34 @@ class DefaultXRayDisclosurePolicy implements XRayDisclosurePolicyContract
             'mobile' => $this->maskMobile((string) $value),
             'email' => $this->maskEmail((string) $value),
             'account_number' => $this->maskAccountNumber((string) $value),
+            'service_info' => $this->safeServiceInfo($value),
             default => $value,
         };
+    }
+
+    protected function safeServiceInfo(mixed $value): array
+    {
+        if (! is_array($value)) {
+            return [];
+        }
+
+        $fields = collect($value)
+            ->only(['host_name', 'host_version', 'x_change_version', 'form_flow_version', 'publisher'])
+            ->filter(static fn (mixed $item): bool => is_string($item) && trim($item) !== '')
+            ->map(static fn (string $item): string => mb_substr(trim($item), 0, 120))
+            ->all();
+        $contributors = $value['contributors'] ?? [];
+
+        if (is_array($contributors)) {
+            $fields['contributors'] = array_values(array_filter(array_map(
+                static fn (mixed $item): ?string => is_string($item) && trim($item) !== ''
+                    ? mb_substr(trim($item), 0, 120)
+                    : null,
+                array_slice($contributors, 0, 10),
+            )));
+        }
+
+        return $fields;
     }
 
     protected function safePresentation(mixed $presentation): array
