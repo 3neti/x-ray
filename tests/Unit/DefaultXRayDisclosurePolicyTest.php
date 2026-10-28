@@ -29,6 +29,46 @@ it('redacts guest amount and redirect URL by default', function () {
         ->and($decision['requirements'])->toHaveCount(1);
 });
 
+it('discloses only explicitly allowed public Pay Code details', function () {
+    $policy = app(DefaultXRayDisclosurePolicy::class);
+    $context = new XRayContextData(code: 'JK33', actor: new XRayActorData(audience: 'guest'));
+
+    $decision = $policy->evaluate($context, [
+        'status' => 'claimable',
+        'amount' => '₱50.00',
+        'issuer' => 'Amelia',
+        'funding_source' => 'Issuer-funded Pay Code reserve',
+        'provider' => 'NetBank',
+        'reference' => 'JK33',
+        'issued_at' => '2026-10-28T08:33:00+08:00',
+        'expires_at' => '2026-10-29T08:33:00+08:00',
+        'redirect_url' => 'https://example.com/private',
+        'service_info' => [
+            'host_name' => 'x-change',
+            'x_change_version' => 'v1.1.2',
+            'publisher' => '3neti',
+            'contributors' => ['Ada'],
+            'private_key' => 'never-public',
+        ],
+        'allow' => [
+            'amount' => true,
+            'issuer' => true,
+            'funding_source' => true,
+            'provider' => true,
+            'reference' => true,
+            'issued_at' => true,
+            'expires_at' => true,
+            'service_info' => true,
+        ],
+    ]);
+
+    $disclosures = collect($decision['disclosures'])->keyBy('key');
+
+    expect($disclosures->pluck('key')->all())->toContain('amount', 'issuer', 'provider', 'reference', 'expires_at')
+        ->and($disclosures->get('service_info')['value'])->not->toHaveKey('private_key')
+        ->and(collect($decision['redactions'])->pluck('key')->all())->toContain('redirect_url');
+});
+
 it('discloses sanitized slice rows to guests only when the voucher allows it', function () {
     $policy = app(DefaultXRayDisclosurePolicy::class);
     $context = new XRayContextData(
