@@ -46,7 +46,9 @@ it('discloses only explicitly allowed public Pay Code details', function () {
         'service_info' => [
             'host_name' => 'x-change',
             'x_change_version' => 'v1.1.2',
+            'x_ray_version' => 'v1.0.3',
             'publisher' => '3neti',
+            'authors' => ['Ada', ' Anaïs ', null, str_repeat('A', 121)],
             'contributors' => ['Ada'],
             'private_key' => 'never-public',
         ],
@@ -66,7 +68,41 @@ it('discloses only explicitly allowed public Pay Code details', function () {
 
     expect($disclosures->pluck('key')->all())->toContain('amount', 'issuer', 'provider', 'reference', 'expires_at')
         ->and($disclosures->get('service_info')['value'])->not->toHaveKey('private_key')
+        ->and($disclosures->get('service_info')['value']['x_ray_version'])->toBe('v1.0.3')
+        ->and($disclosures->get('service_info')['value']['authors'])->toBe(['Ada', 'Anaïs', str_repeat('A', 120)])
         ->and(collect($decision['redactions'])->pluck('key')->all())->toContain('redirect_url');
+});
+
+it('allows the bounded value-use summary only when amount disclosure is permitted', function (): void {
+    $policy = app(DefaultXRayDisclosurePolicy::class);
+    $context = new XRayContextData(code: 'JK33', actor: new XRayActorData(audience: 'guest'));
+    $projection = [
+        'status' => 'claimable',
+        'value_use' => [
+            'mode' => 'stored_value',
+            'amount_basis' => 'remaining',
+            'currency' => 'PHP',
+            'amount_minor' => 3_500,
+            'collection_terms' => ['amount' => 'collector_sets_amount', 'otp_above_minor' => 5_000, 'private_channel' => 'secret'],
+            'allocation_reference' => 'secret',
+        ],
+        'allow' => ['value_use' => true],
+    ];
+
+    $allowed = $policy->evaluate($context, $projection);
+    $projection['allow']['value_use'] = false;
+    $blocked = $policy->evaluate($context, $projection);
+
+    expect(collect($allowed['disclosures'])->firstWhere('key', 'value_use')['value'])
+        ->toBe([
+            'schema' => 'x-change.claim-value-use.v1',
+            'mode' => 'stored_value',
+            'amount_basis' => 'remaining',
+            'currency' => 'PHP',
+            'amount_minor' => 3_500,
+            'collection_terms' => ['amount' => 'collector_sets_amount', 'otp_above_minor' => 5_000],
+        ])
+        ->and(collect($blocked['redactions'])->pluck('key')->all())->toContain('value_use');
 });
 
 it('discloses sanitized slice rows to guests only when the voucher allows it', function () {
