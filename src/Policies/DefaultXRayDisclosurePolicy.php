@@ -27,6 +27,7 @@ class DefaultXRayDisclosurePolicy implements XRayDisclosurePolicyContract
 
         $this->maybeDisclose('status', $status, 'Status', Arr::get($rules, 'show_status'), $disclosures, $redactions, $audience, $policyTrace);
         $this->maybeDisclose('amount', Arr::get($projection, 'amount'), 'Amount', Arr::get($rules, 'show_amount'), $disclosures, $redactions, $audience, $policyTrace, $projection);
+        $this->maybeDisclose('value_use', Arr::get($projection, 'value_use'), 'Value use', Arr::get($rules, 'show_amount'), $disclosures, $redactions, $audience, $policyTrace, $projection);
         $this->maybeDisclose('issuer', Arr::get($projection, 'issuer'), 'Issuer', Arr::get($rules, 'show_issuer'), $disclosures, $redactions, $audience, $policyTrace, $projection);
         $this->maybeDisclose('funding_source', Arr::get($projection, 'funding_source'), 'Money source', Arr::get($rules, 'show_funding_source'), $disclosures, $redactions, $audience, $policyTrace, $projection);
         $this->maybeDisclose('provider', Arr::get($projection, 'provider'), 'Payout provider', Arr::get($rules, 'show_provider'), $disclosures, $redactions, $audience, $policyTrace, $projection);
@@ -121,6 +122,7 @@ class DefaultXRayDisclosurePolicy implements XRayDisclosurePolicyContract
             'email' => $this->maskEmail((string) $value),
             'account_number' => $this->maskAccountNumber((string) $value),
             'service_info' => $this->safeServiceInfo($value),
+            'value_use' => $this->safeValueUse($value),
             default => $value,
         };
     }
@@ -150,6 +152,48 @@ class DefaultXRayDisclosurePolicy implements XRayDisclosurePolicyContract
         }
 
         return $fields;
+    }
+
+    protected function safeValueUse(mixed $value): array
+    {
+        if (! is_array($value)) {
+            return [];
+        }
+
+        $mode = $value['mode'] ?? null;
+        $basis = $value['amount_basis'] ?? null;
+        if (! in_array($mode, ['whole', 'flexible', 'equal', 'scheduled', 'stored_value'], true)
+            || ! in_array($basis, ['whole', 'remaining', 'available_now', 'next_available', 'starting', 'unavailable'], true)) {
+            return [];
+        }
+
+        $safe = [
+            'schema' => 'x-change.claim-value-use.v1',
+            'mode' => $mode,
+            'amount_basis' => $basis,
+            'currency' => 'PHP',
+        ];
+        foreach (['amount_minor', 'minimum_minor', 'claims_remaining', 'portion_number', 'portion_count'] as $key) {
+            $number = $value[$key] ?? null;
+            if (is_int($number) && $number >= 0) {
+                $safe[$key] = $number;
+            }
+        }
+
+        $availableAt = $value['available_at'] ?? null;
+        if (is_string($availableAt) && strlen($availableAt) <= 40 && strtotime($availableAt) !== false) {
+            $safe['available_at'] = $availableAt;
+        }
+
+        $terms = $value['collection_terms'] ?? null;
+        if (is_array($terms) && $mode === 'stored_value') {
+            $safe['collection_terms'] = ['amount' => 'collector_sets_amount'];
+            if (is_int($terms['otp_above_minor'] ?? null) && $terms['otp_above_minor'] > 0) {
+                $safe['collection_terms']['otp_above_minor'] = $terms['otp_above_minor'];
+            }
+        }
+
+        return $safe;
     }
 
     protected function safePresentation(mixed $presentation): array
